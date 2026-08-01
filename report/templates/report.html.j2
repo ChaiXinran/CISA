@@ -12,7 +12,7 @@
     <div class="hero__inner">
       <p class="eyebrow">CISA Known Exploited Vulnerabilities</p>
       <h1>KEV 冻结快照分析报告</h1>
-      <p class="lead">数据验证、时间与期限、勒索软件状态、厂商集中度、CWE 结构及组合查询</p>
+      <p class="lead">数据验证、时间与期限、勒索软件状态、厂商集中度、CWE 结构、组合查询及探索性机器学习</p>
       <div class="meta-grid" aria-label="数据集摘要">
         <div><span>目录版本</span><strong>{{ metadata.catalogVersion }}</strong></div>
         <div><span>发布日期</span><strong>{{ metadata.dateReleased[:10] }}</strong></div>
@@ -24,7 +24,7 @@
   <nav class="toc" aria-label="报告目录">
     <a href="#overview">概览</a><a href="#quality">数据质量</a><a href="#temporal">时间趋势</a>
     <a href="#deadline">处置期限</a><a href="#ransomware">勒索软件状态</a>
-    <a href="#vendor-analysis">厂商</a><a href="#cwe-analysis">CWE</a><a href="#query-cases">查询</a><a href="#limitations">解释边界</a>
+    <a href="#vendor-analysis">厂商</a><a href="#cwe-analysis">CWE</a><a href="#query-cases">查询</a><a href="#ml-analysis">机器学习</a><a href="#limitations">解释边界</a>
   </nav>
   <main id="main">
     {% include "sections/01_overview.html.j2" %}
@@ -33,6 +33,7 @@
     {% include "sections/04_vendor.html.j2" %}
     {% include "sections/05_cwe.html.j2" %}
     {% include "sections/06_queries.html.j2" %}
+    {% include "sections/09_ml.html.j2" %}
     {% include "sections/07_limitations.html.j2" %}
   </main>
   <footer>由本地冻结快照生成 · 报告可离线打开 · 占比在数据文件中保存为 [0,1] 小数</footer>

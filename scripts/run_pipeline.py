@@ -15,6 +15,7 @@ from kev_analysis.analysis import (  # noqa: E402
     analyze_ransomware,
     run_cwe_analysis,
     run_query_cases,
+    run_ml_clustering,
     run_temporal_analysis,
     run_vendor_analysis,
 )
@@ -50,6 +51,7 @@ def main() -> int:
     vendor = run_vendor_analysis(prepared)
     cwe = run_cwe_analysis(prepared)
     queries = run_query_cases(prepared)
+    ml = run_ml_clustering(prepared)
 
     for name, table in {**temporal.tables, **ransomware.tables}.items():
         export_table(table, args.output / "tables" / f"{name}.csv")
@@ -67,6 +69,9 @@ def main() -> int:
             args.output / "queries" / f"{query_name}_summary.json",
         )
     export_json({"queries": queries.metrics["query_log"]}, args.output / "logs/query_log.json")
+    for name, table in ml.tables.items():
+        export_table(table, args.output / "ml" / f"{name}.csv")
+    export_json(ml.metrics, args.output / "metrics/ml_metrics.json")
     figures = build_temporal_figures(
         temporal.tables["monthly_additions"], temporal.tables["annual_additions"],
         temporal.tables["deadline_frequency"], prepared,
@@ -75,7 +80,7 @@ def main() -> int:
     report = build_report(
         args.report, PROJECT_ROOT / "report/templates", metadata=metadata,
         validation=validation, field_quality=field_quality, temporal=temporal,
-        ransomware=ransomware, vendor=vendor, cwe=cwe, queries=queries, figures=figures,
+        ransomware=ransomware, vendor=vendor, cwe=cwe, queries=queries, ml=ml, figures=figures,
     )
     print(f"[PASS] Loaded, validated and prepared {len(prepared):,} records")
     print(
@@ -85,6 +90,10 @@ def main() -> int:
     print(f"[PASS] Vendor analysis completed: {len(vendor.tables['vendor_summary']):,} labels")
     print(f"[PASS] CWE analysis completed: {len(cwe.tables['cwe_summary']):,} labels")
     print(f"[PASS] Query cases completed: {len(queries.tables)} cases")
+    print(
+        f"[PASS] ML clustering completed: k={ml.metrics['selected_k']}, "
+        f"silhouette={ml.metrics['best_silhouette_score']:.4f}"
+    )
     print(f"[PASS] Generated offline HTML report: {report}")
     return 0
 

@@ -1,0 +1,29 @@
+<section id="ml-analysis" class="section">
+  <p class="section-kicker">09 / Exploratory machine learning</p>
+  <h2>K-means 聚类与 PCA 结构探索</h2>
+  <p>本节根据目录规定期限、加入年份、勒索软件确认标签、CWE 数量、厂商频数和产品频数，对 KEV 目录记录进行无监督结构分组。厂商和产品名称没有被任意编码为有序数字。</p>
+  <div class="stat-row compact">
+    <div class="stat"><span>选择的聚类数</span><strong>{{ ml.metrics.selected_k }}</strong></div>
+    <div class="stat"><span>最佳轮廓系数</span><strong>{{ ml.metrics.best_silhouette_score | number }}</strong></div>
+    <div class="stat"><span>前三个主成分解释率</span><strong>{{ ml.metrics.pca_explained_variance_total | percent }}</strong></div>
+    <div class="stat"><span>随机种子</span><strong>{{ ml.metrics.random_state }}</strong></div>
+  </div>
+  <div class="callout"><strong>解释边界：</strong>聚类仅表示 KEV 目录记录的字段结构差异，不是风险等级、攻击概率、厂商安全性或修复难度。</div>
+  <div class="chart">{{ ml.figure_html.ml_k_selection | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_pca_3d | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_pca_scatter | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_profile_heatmap | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_profile_radar | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_cluster_sizes | safe }}</div>
+  <div class="table-wrap">
+    <table>
+      <caption>聚类结构概况（均值）</caption>
+      <thead><tr><th>簇</th><th>记录数</th><th>占比</th><th>期限</th><th>加入年份</th><th>Known 比例</th><th>CWE 数量</th><th>厂商频数</th><th>产品频数</th></tr></thead>
+      <tbody>
+      {% for row in ml.tables.cluster_profiles %}
+        <tr><td>{{ row.cluster }}</td><td>{{ row.record_count | integer }}</td><td>{{ row.record_share | percent }}</td><td>{{ row.deadline_days | number }}</td><td>{{ row.year_added | number }}</td><td>{{ row.is_known_ransomware | percent }}</td><td>{{ row.cwe_count | number }}</td><td>{{ row.vendor_frequency | number }}</td><td>{{ row.product_frequency | number }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
