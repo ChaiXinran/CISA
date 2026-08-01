@@ -1,0 +1,13 @@
+<section id="query-cases">
+  <h2>组合查询案例</h2>
+  <p>日期端点均包含在结果内，厂商为大小写不敏感的子串匹配，CWE 为完整值匹配，多个条件以 AND 连接。</p>
+  {% for name, summary in queries.metrics.query_summaries.items() %}
+  <article>
+    <h3>{{ name }}</h3>
+    <p>结果 {{ summary.result_count }} 条；厂商 {{ summary.unique_vendors }} 个；产品 {{ summary.unique_products }} 个；日期范围 {{ summary.date_min or "无" }} 至 {{ summary.date_max or "无" }}。</p>
+    <dl>
+      {% for key, value in summary.filters.items() %}<dt>{{ key }}</dt><dd>{{ value if value is not none else "未设置" }}</dd>{% endfor %}
+    </dl>
+  </article>
+  {% endfor %}
+</section>
