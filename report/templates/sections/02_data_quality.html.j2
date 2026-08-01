@@ -1,0 +1,21 @@
+<section id="quality" class="section">
+  <p class="section-kicker">02 / Data quality</p>
+  <h2>读取、验证与预处理</h2>
+  <div class="stat-row">
+    <div class="stat"><span>检查项</span><strong>{{ validation.checks | length }}</strong><small>全部通过</small></div>
+    <div class="stat"><span>唯一 CVE</span><strong>{{ validation.statistics.unique_cve_count | integer }}</strong></div>
+    <div class="stat"><span>空 CWE 列表</span><strong>{{ validation.statistics.empty_cwe_records | integer }}</strong><small>原样保留</small></div>
+    <div class="stat"><span>SHA-256</span><strong class="mono">已核验</strong></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <caption>原始字段质量统计</caption>
+      <thead><tr><th>字段</th><th>类型</th><th>非空</th><th>空值</th><th>空字符串</th><th>空列表</th></tr></thead>
+      <tbody>
+      {% for row in field_quality %}
+        <tr><td>{{ row.field }}</td><td>{{ row.observed_types }}</td><td>{{ row.non_null_count | integer }}</td><td>{{ row.null_count }}</td><td>{{ row.empty_string_count }}</td><td>{{ row.empty_list_count }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

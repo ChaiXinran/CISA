@@ -19,3 +19,12 @@ class ValidationResult:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
+@dataclass
+class AnalysisArtifacts:
+    """Stable boundary between analysis, export and report layers."""
+
+    tables: dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
+    figures: dict[str, Any] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)

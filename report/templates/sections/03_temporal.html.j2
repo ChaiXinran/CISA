@@ -1,0 +1,38 @@
+<section id="temporal" class="section">
+  <p class="section-kicker">03 / Time</p>
+  <h2>目录加入时间</h2>
+  <p>月度序列连续展示 2021 年 11 月至 2026 年 7 月。2021 年和 2026 年属于部分年份，不能与完整年份直接作等期比较。</p>
+  <div class="chart">{{ figures.monthly_additions | safe }}</div>
+  <div class="chart">{{ figures.annual_additions | safe }}</div>
+  <div class="table-wrap">
+    <table>
+      <caption>年度记录数与数据覆盖范围</caption>
+      <thead><tr><th>年份</th><th>记录数</th><th>占比</th><th>首月</th><th>末月</th><th>覆盖月数</th><th>完整年份</th></tr></thead>
+      <tbody>{% for row in annual %}<tr><td>{{ row.year }}</td><td>{{ row.count | integer }}</td><td>{{ row.share | percent }}</td><td>{{ row.first_month }}</td><td>{{ row.last_month }}</td><td>{{ row.months_covered }}</td><td>{{ "是" if row.is_complete_year else "否" }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section id="deadline" class="section">
+  <p class="section-kicker">04 / Required-action window</p>
+  <h2>目录规定处置期限</h2>
+  <p><code>deadline_days = dueDate - dateAdded</code>，按日历日计算且不把起始日另计为一天。</p>
+  <div class="stat-row compact">
+  {% for row in deadline_summary %}
+    {% if row.metric in ["minimum", "median", "mean", "maximum"] %}<div class="stat"><span>{{ row.metric }}</span><strong>{{ row.value | number }}</strong><small>天</small></div>{% endif %}
+  {% endfor %}
+  </div>
+  <div class="chart">{{ figures.deadline_distribution | safe }}</div>
+  <div class="chart">{{ figures.deadline_by_year | safe }}</div>
+</section>
+
+<section id="ransomware" class="section">
+  <p class="section-kicker">05 / Ransomware status</p>
+  <h2>勒索软件活动利用确认状态</h2>
+  <p><strong>Known</strong> 表示已有确认信息；<strong>Unknown</strong> 表示尚未确认，不能解释为“未被利用”。</p>
+  <div class="stat-row compact">
+  {% for row in ransomware_summary %}<div class="stat"><span>{{ row.status }}</span><strong>{{ row.count | integer }}</strong><small>{{ row.share | percent }}</small></div>{% endfor %}
+  </div>
+  <div class="chart">{{ figures.ransomware_overall | safe }}</div>
+  <div class="chart">{{ figures.ransomware_by_year | safe }}</div>
+</section>
