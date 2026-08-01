@@ -14,6 +14,12 @@ def test_vendor_filter_is_case_insensitive_substring(prepared_df):
     assert set(result["vendor_clean"]) == {"Acme", "acme Labs"}
 
 
+def test_product_filter_is_case_insensitive_substring(prepared_df):
+    result, summary = filter_kev(prepared_df, product="one")
+    assert set(result["product_clean"]) == {"One"}
+    assert summary["filters"]["product"] == "one"
+
+
 def test_invalid_ransomware_raises_value_error(prepared_df):
     with pytest.raises(ValueError):
         filter_kev(prepared_df, ransomware="No")

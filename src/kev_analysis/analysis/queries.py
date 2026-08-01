@@ -22,6 +22,7 @@ def filter_kev(
     start_date=None,
     end_date=None,
     vendor=None,
+    product=None,
     ransomware=None,
     cwe=None,
 ) -> tuple[pd.DataFrame, dict]:
@@ -48,6 +49,10 @@ def filter_kev(
         mask &= result["vendor_clean"].astype(str).str.contains(
             str(vendor), case=False, regex=False, na=False
         )
+    if product is not None:
+        mask &= result["product_clean"].astype(str).str.contains(
+            str(product), case=False, regex=False, na=False
+        )
     if ransomware is not None:
         mask &= result["knownRansomwareCampaignUse"].eq(ransomware)
     normalized_cwe = str(cwe).upper() if cwe is not None else None
@@ -68,6 +73,7 @@ def filter_kev(
     summary = {
         "filters": {
             "start_date": _iso(start), "end_date": _iso(end), "vendor": vendor,
+            "product": product,
             "ransomware": ransomware, "cwe": normalized_cwe,
         },
         "result_count": int(len(result)),
