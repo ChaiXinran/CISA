@@ -16,7 +16,8 @@ from .detail_panel import DetailPanel
 from .filter_panel import FilterPanel
 from .results_table import ResultsTable
 from .state import GuiState
-from .visualization_panel import VisualizationPanel
+from .chart_panel import VisualizationPanel
+from .chart_export import export_widget_png, normalized_png_path
 from .styles import APP_STYLESHEET
 
 
@@ -26,10 +27,14 @@ class MainWindow(QMainWindow):
         self.state = GuiState()
         self.setWindowTitle("CISA KEV 查询与可视化")
         self.resize(1440, 900)
-        self.open_button, self.export_button = QPushButton("选择 KEV JSON"), QPushButton("导出当前结果 CSV")
+        self.open_button = QPushButton("选择 KEV JSON")
+        self.export_button = QPushButton("导出当前结果 CSV")
+        self.export_chart_button = QPushButton("导出当前视图 PNG")
         self.open_button.setObjectName("primaryButton")
         self.export_button.setObjectName("exportButton")
+        self.export_chart_button.setObjectName("exportButton")
         self.export_button.setEnabled(False)
+        self.export_chart_button.setEnabled(False)
         self.catalog_version, self.release_date, self.record_count = QLabel("—"), QLabel("—"), QLabel("0")
         self.load_status = QLabel("未加载")
         self.load_status.setObjectName("loadStatus")
@@ -40,7 +45,7 @@ class MainWindow(QMainWindow):
         for column, widget in enumerate((
             self.open_button, QLabel("目录版本"), self.catalog_version, QLabel("发布日期"),
             self.release_date, QLabel("记录数"), self.record_count,
-            QLabel("状态"), self.load_status, self.export_button,
+            QLabel("状态"), self.load_status, self.export_button, self.export_chart_button,
         )):
             header.addWidget(widget, 0, column)
         top_bar = QFrame()
@@ -54,14 +59,14 @@ class MainWindow(QMainWindow):
         self.result_summary.setObjectName("resultSummary")
         self.result_summary.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.result_summary.setFixedHeight(44)
-        result_split = QSplitter(Qt.Orientation.Horizontal)
-        result_split.addWidget(self.results); result_split.addWidget(self.details)
-        result_split.setStretchFactor(0, 3); result_split.setStretchFactor(1, 2)
-        tabs = QTabWidget()
-        tabs.addTab(self.visualizations, "可视化")
-        tabs.addTab(result_split, "CVE 结果与详情")
+        self.result_split = QSplitter(Qt.Orientation.Horizontal)
+        self.result_split.addWidget(self.results); self.result_split.addWidget(self.details)
+        self.result_split.setStretchFactor(0, 3); self.result_split.setStretchFactor(1, 2)
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.visualizations, "可视化")
+        self.tabs.addTab(self.result_split, "CVE 结果与详情")
         content = QSplitter(Qt.Orientation.Horizontal)
-        content.addWidget(self.filters); content.addWidget(tabs)
+        content.addWidget(self.filters); content.addWidget(self.tabs)
         content.setStretchFactor(1, 1)
         root, layout = QWidget(), QVBoxLayout()
         root.setObjectName("centralRoot")
@@ -72,9 +77,14 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("请选择课程 JSON 文件")
         self.open_button.clicked.connect(self.choose_file)
         self.export_button.clicked.connect(self.export_results)
+        self.export_chart_button.clicked.connect(self.export_chart)
         self.filters.apply_requested.connect(self.apply_filters)
         self.filters.reset_requested.connect(self.reset_filters)
         self.results.cve_selected.connect(self.show_cve)
+        self.visualizations.export_available.connect(self.export_chart_button.setEnabled)
+        self.visualizations.vendor_selected.connect(self.apply_vendor_from_visualization)
+        self.tabs.currentChanged.connect(self._update_export_view_label)
+        self._update_export_view_label()
         self._install_shortcuts()
 
     def _install_shortcuts(self) -> None:
@@ -162,12 +172,54 @@ class MainWindow(QMainWindow):
             self.state.selected_cve = cve_id
             self.details.set_record(match.iloc[0].to_dict())
 
+    def apply_vendor_from_visualization(self, vendor: str) -> None:
+        """Apply a globe-selected vendor through the existing filter pipeline."""
+        if not self.state.loaded:
+            return
+        self.filters.vendor.setText(vendor)
+        self.apply_filters(self.filters.values())
+        self.statusBar().showMessage(f"已从地球选择厂商：{vendor}")
+
     def export_results(self) -> None:
         if not self.state.loaded:
             return
         path, _ = QFileDialog.getSaveFileName(self, "导出当前筛选结果", "kev_filtered.csv", "CSV (*.csv)")
         if path:
             self.export_to_path(path)
+
+    def export_chart(self) -> None:
+        if not self.state.loaded:
+            return
+        visual = self.tabs.currentWidget() is self.visualizations
+        title = "导出当前可视化" if visual else "导出当前 CVE 结果表"
+        default_name = "kev_visualization.png" if visual else "kev_results_table.png"
+        path, _ = QFileDialog.getSaveFileName(self, title, default_name, "PNG (*.png)")
+        if path:
+            self.export_chart_to_path(path)
+
+    def export_chart_to_path(self, path: str | Path) -> Path:
+        """Export the currently visible visualization or results/details view."""
+        if not self.state.loaded:
+            raise RuntimeError("尚未加载 KEV 数据")
+        destination = normalized_png_path(path)
+        visual = self.tabs.currentWidget() is self.visualizations
+        try:
+            if visual:
+                self.visualizations.export_png(destination)
+            else:
+                export_widget_png(self.results, destination)
+        except (OSError, PermissionError) as exc:
+            QMessageBox.critical(self, "图表导出失败", str(exc))
+            raise
+        view_name = "当前可视化" if visual else "当前 CVE 结果表"
+        self.statusBar().showMessage(f"已导出{view_name}：{destination}")
+        return destination
+
+    def _update_export_view_label(self) -> None:
+        visual = self.tabs.currentWidget() is self.visualizations
+        self.export_chart_button.setText(
+            "导出当前图表 PNG" if visual else "导出当前表格 PNG"
+        )
 
     def export_to_path(self, path: str | Path) -> Path:
         """Export current rows; separate from the dialog so it is testable."""

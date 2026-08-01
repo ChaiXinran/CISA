@@ -1,0 +1,21 @@
+vendor_clean,country,city,latitude,longitude,location_type,source
+Microsoft,United States,Redmond,47.6740,-122.1215,global_headquarters,https://www.microsoft.com/en-us/about/office-locations
+Cisco,United States,San Jose,37.3382,-121.8863,corporate_headquarters,https://www.cisco.com/site/us/en/about/index.html
+Apple,United States,Cupertino,37.3230,-122.0322,corporate_headquarters,https://www.apple.com/contact/
+Adobe,United States,San Jose,37.3382,-121.8863,corporate_headquarters,https://www.adobe.com/about-adobe/contact/offices.html
+Google,United States,Mountain View,37.3861,-122.0839,global_headquarters,https://about.google/company-info/locations/
+Oracle,United States,Austin,30.2672,-97.7431,corporate_headquarters,https://www.oracle.com/corporate/contact/
+Ivanti,United States,South Jordan,40.5622,-111.9297,corporate_headquarters,https://www.ivanti.com/company/contacts
+Fortinet,United States,Sunnyvale,37.3688,-122.0363,corporate_headquarters,https://www.fortinet.com/corporate/about-us/contact-us
+D-Link,Taiwan,Taipei,25.0330,121.5654,global_headquarters,https://www.dlink.com/en/contact-us
+VMware,United States,Palo Alto,37.4419,-122.1430,headquarters_label_location,https://www.vmware.com/company/contact.html
+Citrix,United States,Fort Lauderdale,26.1224,-80.1373,headquarters_label_location,https://www.cloud.com/contact
+SonicWall,United States,Milpitas,37.4323,-121.8996,corporate_headquarters,https://www.sonicwall.com/about-sonicwall/contact-us
+Palo Alto Networks,United States,Santa Clara,37.3541,-121.9552,global_headquarters,https://www.paloaltonetworks.com/company/contact-us
+Samsung,South Korea,Suwon,37.2636,127.0286,global_headquarters,https://www.samsung.com/global/ir/company-information/location/
+SAP,Germany,Walldorf,49.3064,8.6428,global_headquarters,https://www.sap.com/about/company/office-locations.html
+Atlassian,Australia,Sydney,-33.8688,151.2093,global_headquarters,https://www.atlassian.com/company/contact
+Qualcomm,United States,San Diego,32.7157,-117.1611,corporate_headquarters,https://www.qualcomm.com/company/locations
+Trend Micro,Japan,Tokyo,35.6762,139.6503,global_headquarters,https://www.trendmicro.com/en_us/about/contact-us.html
+Zyxel,Taiwan,Hsinchu,24.8138,120.9675,global_headquarters,https://www.zyxel.com/global/en/contact-us
+QNAP,Taiwan,New Taipei City,25.0169,121.4628,headquarters_label_location,https://www.qnap.com/en/about/con_show.php?op=contact
