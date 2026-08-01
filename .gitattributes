@@ -1,0 +1,10 @@
+# Keep repository text files on LF on every operating system. This repository
+# rule overrides a user's global core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows command scripts conventionally require CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# The course snapshot is byte-verified; never rewrite any of its bytes.
+/data/CISA_KEV_2026-07-29.json -text

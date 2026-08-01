@@ -9,7 +9,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from kev_analysis.analysis import analyze_ransomware, run_temporal_analysis
+from kev_analysis.analysis import (
+    analyze_ransomware, run_cwe_analysis, run_query_cases, run_temporal_analysis,
+    run_vendor_analysis,
+)
 from kev_analysis.data import build_field_quality, load_catalog, prepare_data, validate_catalog
 from kev_analysis.reporting import build_report
 from kev_analysis.visualization import build_temporal_figures
@@ -22,6 +25,9 @@ class ReportingTests(unittest.TestCase):
         prepared = prepare_data(raw)
         temporal = run_temporal_analysis(prepared)
         ransomware = analyze_ransomware(prepared)
+        vendor = run_vendor_analysis(prepared)
+        cwe = run_cwe_analysis(prepared)
+        queries = run_query_cases(prepared)
         figures = build_temporal_figures(
             temporal.tables["monthly_additions"], temporal.tables["annual_additions"],
             temporal.tables["deadline_frequency"], prepared,
@@ -32,13 +38,17 @@ class ReportingTests(unittest.TestCase):
                 Path(directory) / "report.html", PROJECT_ROOT / "report/templates",
                 metadata=metadata, validation=validation,
                 field_quality=build_field_quality(raw), temporal=temporal,
-                ransomware=ransomware, figures=figures,
+                ransomware=ransomware, vendor=vendor, cwe=cwe, queries=queries,
+                figures=figures,
             )
             html = output.read_text(encoding="utf-8")
         self.assertIn("KEV 冻结快照分析报告", html)
         self.assertIn("plotly.js", html.lower())
         self.assertIsNone(re.search(r'<script[^>]+src=["\']https?://', html, re.IGNORECASE))
         self.assertIn("1,656", html)
+        self.assertIn("厂商、产品与标签集中度", html)
+        self.assertIn("CWE 结构分析", html)
+        self.assertIn("组合查询案例", html)
 
 
 if __name__ == "__main__":

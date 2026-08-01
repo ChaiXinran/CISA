@@ -39,9 +39,12 @@ def build_report(
     field_quality: pd.DataFrame,
     temporal: AnalysisArtifacts,
     ransomware: AnalysisArtifacts,
+    vendor: AnalysisArtifacts,
+    cwe: AnalysisArtifacts,
+    queries: AnalysisArtifacts,
     figures: dict[str, Any],
 ) -> Path:
-    """Render the current A-line artifacts into one offline HTML file."""
+    """Render all A-line and B-line artifacts into one offline HTML file."""
 
     template_path = Path(template_dir)
     environment = Environment(
@@ -57,6 +60,8 @@ def build_report(
 
     css = (template_path.parent / "assets" / "report.css").read_text(encoding="utf-8")
     annual = temporal.tables["annual_additions"]
+    all_figures = {**figures, **vendor.figures, **cwe.figures}
+    figure_html = _figure_fragments(all_figures)
     context = {
         "metadata": metadata,
         "validation": validation,
@@ -67,7 +72,21 @@ def build_report(
         "ransomware_by_year": _table_records(ransomware.tables["ransomware_by_year"]),
         "temporal_metrics": temporal.metrics,
         "ransomware_metrics": ransomware.metrics,
-        "figures": _figure_fragments(figures),
+        "figures": figure_html,
+        "vendor": {
+            "metrics": vendor.metrics,
+            "tables": {name: _table_records(table) for name, table in vendor.tables.items()},
+            "figure_html": {name: figure_html[name] for name in vendor.figures},
+        },
+        "cwe": {
+            "metrics": cwe.metrics,
+            "tables": {name: _table_records(table) for name, table in cwe.tables.items()},
+            "figure_html": {name: figure_html[name] for name in cwe.figures},
+        },
+        "queries": {
+            "metrics": queries.metrics,
+            "tables": {name: _table_records(table) for name, table in queries.tables.items()},
+        },
         "css": css,
     }
     html = environment.get_template("report.html.j2").render(**context)

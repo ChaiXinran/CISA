@@ -2,21 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
 import pandas as pd
-import plotly.graph_objects as go
-
-
-@dataclass
-class AnalysisArtifacts:
-    """Stable payload consumed by the report integration layer."""
-
-    tables: dict[str, pd.DataFrame]
-    metrics: dict[str, Any]
-    figures: dict[str, go.Figure]
-    notes: list[str]
+from kev_analysis.models import AnalysisArtifacts
 
 
 def _require_columns(df: pd.DataFrame, columns: set[str]) -> None:

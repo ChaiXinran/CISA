@@ -1,13 +1,15 @@
-<section id="vendor-analysis">
+<section id="vendor-analysis" class="section">
+  <p class="section-kicker">06 / Vendor concentration</p>
   <h2>厂商、产品与标签集中度</h2>
   <p>本节统计的是当前 KEV 快照中的厂商及产品标签，不代表厂商安全性、产品质量或实际受攻击概率。</p>
-  <div class="metric-grid">
-    <div class="metric"><span>CR5</span><strong>{{ "%.2f%%"|format(vendor.metrics.vendor_concentration.cr5 * 100) }}</strong></div>
-    <div class="metric"><span>CR10</span><strong>{{ "%.2f%%"|format(vendor.metrics.vendor_concentration.cr10 * 100) }}</strong></div>
-    <div class="metric"><span>HHI</span><strong>{{ "%.4f"|format(vendor.metrics.vendor_concentration.hhi) }}</strong></div>
+  <div class="stat-row compact">
+    <div class="stat"><span>CR5</span><strong>{{ vendor.metrics.vendor_concentration.cr5 | percent }}</strong></div>
+    <div class="stat"><span>CR10</span><strong>{{ vendor.metrics.vendor_concentration.cr10 | percent }}</strong></div>
+    <div class="stat"><span>HHI</span><strong>{{ "%.4f"|format(vendor.metrics.vendor_concentration.hhi) }}</strong></div>
   </div>
-  {{ vendor.figure_html.vendor_top20 | safe }}
-  {{ vendor.figure_html.vendor_product_top30 | safe }}
-  {{ vendor.figure_html.vendor_pareto | safe }}
-  {{ vendor.figure_html.vendor_ransomware | safe }}
+  <div class="chart">{{ vendor.figure_html.vendor_top20 | safe }}</div>
+  <div class="chart">{{ vendor.figure_html.vendor_product_top30 | safe }}</div>
+  <div class="chart">{{ vendor.figure_html.vendor_pareto | safe }}</div>
+  <div class="chart">{{ vendor.figure_html.vendor_ransomware | safe }}</div>
+  <div class="chart">{{ vendor.figure_html.vendor_concentration | safe }}</div>
 </section>

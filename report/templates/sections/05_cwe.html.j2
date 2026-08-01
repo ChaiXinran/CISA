@@ -1,4 +1,5 @@
-<section id="cwe-analysis">
+<section id="cwe-analysis" class="section">
+  <p class="section-kicker">07 / CWE structure</p>
   <h2>CWE 结构分析</h2>
   <p>多值 CWE 仅在专项表中展开；空 CWE 列表不填充占位值。每个 CWE 的数量按唯一 CVE 计算。</p>
   <ul>
@@ -6,7 +7,7 @@
     <li>空 CWE 列表记录：{{ cwe.metrics.records_without_cwe }}</li>
     <li>不同 CWE 标签：{{ cwe.metrics.distinct_cwes }}</li>
   </ul>
-  {{ cwe.figure_html.cwe_top20 | safe }}
-  {{ cwe.figure_html.cwe_by_year | safe }}
-  {{ cwe.figure_html.cwe_ransomware | safe }}
+  <div class="chart">{{ cwe.figure_html.cwe_top20 | safe }}</div>
+  <div class="chart">{{ cwe.figure_html.cwe_by_year | safe }}</div>
+  <div class="chart">{{ cwe.figure_html.cwe_ransomware | safe }}</div>
 </section>
