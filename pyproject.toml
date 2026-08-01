@@ -12,6 +12,7 @@ dependencies = [
   "plotly>=6,<7",
   "Jinja2>=3.1,<4",
   "PyYAML>=6,<7",
+  "scikit-learn>=1.5,<2",
   "Pillow>=10,<13",
   "scikit-learn>=1.5,<2",
   "PyQt6>=6.8,<6.9",
