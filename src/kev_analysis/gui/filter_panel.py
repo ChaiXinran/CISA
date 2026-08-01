@@ -25,6 +25,8 @@ class FilterPanel(QGroupBox):
         ):
             form.addRow(label, widget)
         apply_button, reset_button = QPushButton("应用筛选"), QPushButton("重置")
+        self.apply_button, self.reset_button = apply_button, reset_button
+        self.apply_button.setObjectName("primaryButton")
         apply_button.clicked.connect(lambda: self.apply_requested.emit(self.values()))
         reset_button.clicked.connect(self.reset)
         buttons = QHBoxLayout()
@@ -33,6 +35,7 @@ class FilterPanel(QGroupBox):
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addLayout(buttons)
+        self.setEnabled(False)
 
     @staticmethod
     def _optional(text: str) -> str | None:

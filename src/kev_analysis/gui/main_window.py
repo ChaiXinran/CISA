@@ -3,9 +3,10 @@
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
-    QFileDialog, QGridLayout, QLabel, QMainWindow, QMessageBox, QPushButton,
-    QSplitter, QStatusBar, QTabWidget, QVBoxLayout, QWidget,
+    QFileDialog, QFrame, QGridLayout, QLabel, QMainWindow, QMessageBox, QPushButton,
+    QSizePolicy, QSplitter, QStatusBar, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from kev_analysis.analysis.queries import filter_kev
@@ -16,6 +17,7 @@ from .filter_panel import FilterPanel
 from .results_table import ResultsTable
 from .state import GuiState
 from .visualization_panel import VisualizationPanel
+from .styles import APP_STYLESHEET
 
 
 class MainWindow(QMainWindow):
@@ -25,16 +27,33 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("CISA KEV 查询与可视化")
         self.resize(1440, 900)
         self.open_button, self.export_button = QPushButton("选择 KEV JSON"), QPushButton("导出当前结果 CSV")
+        self.open_button.setObjectName("primaryButton")
+        self.export_button.setObjectName("exportButton")
         self.export_button.setEnabled(False)
         self.catalog_version, self.release_date, self.record_count = QLabel("—"), QLabel("—"), QLabel("0")
+        self.load_status = QLabel("未加载")
+        self.load_status.setObjectName("loadStatus")
+        self.load_status.setProperty("state", "idle")
+        for value_label in (self.catalog_version, self.release_date, self.record_count):
+            value_label.setProperty("role", "value")
         header = QGridLayout()
         for column, widget in enumerate((
             self.open_button, QLabel("目录版本"), self.catalog_version, QLabel("发布日期"),
-            self.release_date, QLabel("记录数"), self.record_count, self.export_button,
+            self.release_date, QLabel("记录数"), self.record_count,
+            QLabel("状态"), self.load_status, self.export_button,
         )):
             header.addWidget(widget, 0, column)
+        top_bar = QFrame()
+        top_bar.setObjectName("topBar")
+        top_bar.setLayout(header)
+        top_bar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        top_bar.setFixedHeight(82)
         self.filters, self.visualizations = FilterPanel(), VisualizationPanel()
         self.results, self.details = ResultsTable(), DetailPanel()
+        self.result_summary = QLabel("当前结果：0 条 · 厂商：0 · 产品：0 · Known：0")
+        self.result_summary.setObjectName("resultSummary")
+        self.result_summary.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.result_summary.setFixedHeight(44)
         result_split = QSplitter(Qt.Orientation.Horizontal)
         result_split.addWidget(self.results); result_split.addWidget(self.details)
         result_split.setStretchFactor(0, 3); result_split.setStretchFactor(1, 2)
@@ -45,21 +64,38 @@ class MainWindow(QMainWindow):
         content.addWidget(self.filters); content.addWidget(tabs)
         content.setStretchFactor(1, 1)
         root, layout = QWidget(), QVBoxLayout()
-        root.setLayout(layout); layout.addLayout(header); layout.addWidget(content)
+        root.setObjectName("centralRoot")
+        root.setLayout(layout); layout.addWidget(top_bar); layout.addWidget(self.result_summary); layout.addWidget(content)
+        layout.setStretch(2, 1)
         self.setCentralWidget(root); self.setStatusBar(QStatusBar())
+        self.setStyleSheet(APP_STYLESHEET)
         self.statusBar().showMessage("请选择课程 JSON 文件")
         self.open_button.clicked.connect(self.choose_file)
         self.export_button.clicked.connect(self.export_results)
         self.filters.apply_requested.connect(self.apply_filters)
         self.filters.reset_requested.connect(self.reset_filters)
         self.results.cve_selected.connect(self.show_cve)
+        self._install_shortcuts()
+
+    def _install_shortcuts(self) -> None:
+        for text, shortcut, callback in (
+            ("打开", QKeySequence.StandardKey.Open, self.choose_file),
+            ("导出", QKeySequence.StandardKey.Save, self.export_results),
+            ("重置筛选", QKeySequence("Ctrl+R"), self.filters.reset),
+        ):
+            action = QAction(text, self)
+            action.setShortcut(shortcut)
+            action.triggered.connect(callback)
+            self.addAction(action)
 
     def choose_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "选择 CISA KEV JSON", "", "JSON (*.json)")
         if path:
             self.load_path(path)
 
-    def load_path(self, path: str | Path) -> None:
+    def load_path(self, path: str | Path) -> bool:
+        self._set_load_status("加载中…", "loading")
+        self.statusBar().showMessage(f"正在加载：{path}")
         try:
             metadata, raw = load_catalog(path)
             validation = validate_catalog(metadata, raw)
@@ -68,15 +104,25 @@ class MainWindow(QMainWindow):
             prepared = prepare_data(raw)
         except Exception as exc:
             QMessageBox.critical(self, "加载失败", str(exc))
+            self._set_load_status("加载失败", "error")
             self.statusBar().showMessage("加载失败")
-            return
+            return False
         self.state = GuiState(metadata, raw, prepared, prepared.copy(deep=True))
         self.catalog_version.setText(str(metadata.get("catalogVersion", "—")))
         self.release_date.setText(str(metadata.get("dateReleased", "—"))[:10])
         self.record_count.setText(f"{len(prepared):,}")
+        self._set_load_status("验证通过", "success")
+        self.filters.setEnabled(True)
         self.export_button.setEnabled(True)
         self._publish_filtered_data()
         self.statusBar().showMessage(f"已加载并验证 {len(prepared):,} 条记录")
+        return True
+
+    def _set_load_status(self, text: str, state: str) -> None:
+        self.load_status.setText(text)
+        self.load_status.setProperty("state", state)
+        self.load_status.style().unpolish(self.load_status)
+        self.load_status.style().polish(self.load_status)
 
     def apply_filters(self, values: dict) -> None:
         if not self.state.loaded:
@@ -103,6 +149,12 @@ class MainWindow(QMainWindow):
         self.results.update_data(self.state.filtered_df)
         self.visualizations.update_data(self.state.filtered_df)
         self.details.clear_record()
+        data = self.state.filtered_df
+        known = int(data["knownRansomwareCampaignUse"].eq("Known").sum()) if not data.empty else 0
+        self.result_summary.setText(
+            f"当前结果：{len(data):,} 条 · 厂商：{data['vendor_clean'].nunique():,} · "
+            f"产品：{data['product_clean'].nunique():,} · Known：{known:,}"
+        )
 
     def show_cve(self, cve_id: str) -> None:
         match = self.state.filtered_df.loc[self.state.filtered_df["cveID"].eq(cve_id)]
@@ -115,7 +167,22 @@ class MainWindow(QMainWindow):
             return
         path, _ = QFileDialog.getSaveFileName(self, "导出当前筛选结果", "kev_filtered.csv", "CSV (*.csv)")
         if path:
+            self.export_to_path(path)
+
+    def export_to_path(self, path: str | Path) -> Path:
+        """Export current rows; separate from the dialog so it is testable."""
+        if not self.state.loaded:
+            raise RuntimeError("尚未加载 KEV 数据")
+        destination = Path(path)
+        if destination.suffix.lower() != ".csv":
+            destination = destination.with_suffix(".csv")
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
             exported = self.state.filtered_df.copy(deep=True)
             exported["cwes"] = exported["cwes"].map(serialize_cwes)
-            exported.to_csv(path, index=False, encoding="utf-8-sig", date_format="%Y-%m-%d")
-            self.statusBar().showMessage(f"已导出 {len(exported):,} 条记录：{path}")
+            exported.to_csv(destination, index=False, encoding="utf-8-sig", date_format="%Y-%m-%d")
+        except (OSError, PermissionError) as exc:
+            QMessageBox.critical(self, "导出失败", str(exc))
+            raise
+        self.statusBar().showMessage(f"已导出 {len(exported):,} 条记录：{destination}")
+        return destination

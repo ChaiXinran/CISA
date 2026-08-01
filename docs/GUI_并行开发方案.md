@@ -16,6 +16,20 @@ conda activate csia
 python scripts/run_gui.py
 ```
 
+也可以启动时直接加载课程文件：
+
+```powershell
+python scripts/run_gui.py --input data/CISA_KEV_2026-07-29.json
+```
+
+快捷键：
+
+```text
+Ctrl+O  选择 JSON
+Ctrl+S  导出当前结果
+Ctrl+R  重置筛选
+```
+
 ## 2. 唯一公共数据流
 
 ```text
@@ -75,6 +89,8 @@ tests/test_gui.py
 - CVE 表格、详情和 CSV 导出；
 - GUI 核心测试；
 - 最终组件接入。
+
+当前完成状态：上述 A 组核心功能均已实现并通过自动化测试。后续 A 只负责接收 B 的组件、连接 PNG 导出按钮，以及完成最终端到端验收。
 
 ### 负责人 B：3D 地球与联动图表
 
