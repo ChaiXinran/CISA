@@ -2,6 +2,7 @@
 
 import pandas as pd
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
 
 DISPLAY_COLUMNS = [
@@ -21,9 +22,13 @@ class ResultsTable(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setAlternatingRowColors(True)
+        self.verticalHeader().setVisible(False)
         self.itemSelectionChanged.connect(self._emit_selection)
 
     def update_data(self, df: pd.DataFrame) -> None:
+        self.setUpdatesEnabled(False)
+        self.blockSignals(True)
         self.clearContents()
         self.setRowCount(len(df))
         for row_index, record in enumerate(df.to_dict(orient="records")):
@@ -31,8 +36,18 @@ class ResultsTable(QTableWidget):
                 item = QTableWidgetItem(str(record.get(field, "")))
                 if field == "cveID":
                     item.setData(Qt.ItemDataRole.UserRole, record.get("cveID"))
+                    item.setForeground(QColor("#126d86"))
+                elif field == "knownRansomwareCampaignUse":
+                    if record.get(field) == "Known":
+                        item.setBackground(QColor("#ffd9d4"))
+                        item.setForeground(QColor("#9b261d"))
+                    else:
+                        item.setBackground(QColor("#e6edf2"))
+                        item.setForeground(QColor("#405564"))
                 self.setItem(row_index, column_index, item)
         self.resizeColumnsToContents()
+        self.blockSignals(False)
+        self.setUpdatesEnabled(True)
 
     def _emit_selection(self) -> None:
         selected = self.selectedItems()
