@@ -40,6 +40,10 @@ def test_k_selection_and_assignments_reconcile(ml_result):
     assert assignments["cluster"].nunique() == selected_k
     assert profiles["record_count"].sum() == 1656
     assert profiles["record_share"].sum() == pytest.approx(1.0)
+    characteristics = ml_result.tables["cluster_characteristics"]
+    assert len(characteristics) == selected_k
+    assert characteristics["title"].str.len().gt(0).all()
+    assert characteristics["description"].str.contains("Known").all()
 
 
 def test_ml_is_deterministic_and_figures_complete(full_prepared, ml_result):
@@ -50,5 +54,5 @@ def test_ml_is_deterministic_and_figures_complete(full_prepared, ml_result):
     )
     assert set(ml_result.figures) == {
         "ml_k_selection", "ml_pca_scatter", "ml_pca_3d",
-        "ml_profile_heatmap", "ml_profile_radar", "ml_cluster_sizes",
+        "ml_profile_heatmap", "ml_feature_deviation", "ml_profile_radar", "ml_cluster_sizes",
     }

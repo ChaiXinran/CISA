@@ -22,6 +22,7 @@ def test_gui_load_filter_reset_details_and_export(application, tmp_path):
     assert window.catalog_version.text() == "2026.07.29"
     assert window.load_status.text() == "验证通过"
     assert window.filters.isEnabled()
+    assert window.export_chart_button.isEnabled()
     window.apply_filters({
         "start_date": None, "end_date": None, "vendor": "Microsoft",
         "product": None, "ransomware": "Known", "cwe": None,
@@ -30,6 +31,9 @@ def test_gui_load_filter_reset_details_and_export(application, tmp_path):
     assert window.state.filtered_df["vendor_clean"].str.contains("Microsoft", case=False).all()
     assert window.state.filtered_df["knownRansomwareCampaignUse"].eq("Known").all()
     assert "Known" in window.result_summary.text()
+    window.visualizations.vendor_selected.emit("Cisco")
+    assert window.filters.vendor.text() == "Cisco"
+    assert window.state.filtered_df["vendor_clean"].str.contains("Cisco", case=False).all()
     cve = window.state.filtered_df.iloc[0]["cveID"]
     window.show_cve(cve)
     assert window.state.selected_cve == cve
@@ -39,6 +43,12 @@ def test_gui_load_filter_reset_details_and_export(application, tmp_path):
     assert destination.suffix == ".csv"
     assert len(exported) == len(window.state.filtered_df)
     assert exported["cwes"].map(lambda value: isinstance(value, str) or pd.isna(value)).all()
+    chart_path = window.export_chart_to_path(tmp_path / "visualization")
+    assert chart_path.exists() and chart_path.suffix == ".png"
+    window.tabs.setCurrentWidget(window.result_split)
+    assert window.export_chart_button.text() == "导出当前表格 PNG"
+    table_path = window.export_chart_to_path(tmp_path / "results_and_details")
+    assert table_path.exists() and table_path.suffix == ".png"
     window.reset_filters()
     assert len(window.state.filtered_df) == 1656
     window.close()

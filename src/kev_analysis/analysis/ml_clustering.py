@@ -27,6 +27,59 @@ FEATURE_COLUMNS = [
 MODEL_FEATURE_COLUMNS = [column for column in FEATURE_COLUMNS if column != "has_cwe"]
 
 
+def build_cluster_characteristics(
+    profiles: pd.DataFrame,
+    standardized_profiles: pd.DataFrame,
+) -> pd.DataFrame:
+    """Create evidence-backed Chinese labels and descriptions for each cluster."""
+    standardized = standardized_profiles.set_index("cluster")
+    rows = []
+    for record in profiles.to_dict(orient="records"):
+        cluster = int(record["cluster"])
+        z = standardized.loc[cluster]
+        if z["deadline_days"] > 1:
+            title = "早期超长期限·高频厂商型" if z["vendor_frequency"] > 0 else "早期超长期限·长尾厂商型"
+        elif z["is_known_ransomware"] > 1:
+            title = "Known 标签集中型"
+        elif z["cwe_count"] > 1:
+            title = "多 CWE 标签型"
+        elif z["cwe_count"] < -1:
+            title = "CWE 信息缺失型"
+        elif z["vendor_frequency"] > .8:
+            title = "高频厂商产品集中型"
+        elif z["year_added"] > .8:
+            title = "近期加入·长尾产品型"
+        else:
+            title = "常规期限·分散产品型"
+        description = (
+            f"共 {int(record['record_count'])} 条（{record['record_share']:.1%}）。"
+            f"平均加入年份 {record['year_added']:.1f}，目录处置期限 {record['deadline_days']:.1f} 天；"
+            f"Known 标签占 {record['is_known_ransomware']:.1%}，平均每条含 {record['cwe_count']:.2f} 个 CWE；"
+            f"对应厂商标签平均频数 {record['vendor_frequency']:.1f}、厂商—产品组合平均频数 {record['product_frequency']:.1f}。"
+        )
+        rows.append({"cluster": cluster, "title": title, "description": description})
+    return pd.DataFrame(rows)
+
+
+def render_cluster_interpretation(characteristics: pd.DataFrame, metrics: dict) -> str:
+    """Render a standalone Markdown interpretation for submission or review."""
+    lines = [
+        "# KEV 聚类特点解释",
+        "",
+        f"K-means 在 k=2 至 8 中选择 k={metrics['selected_k']}，最佳轮廓系数为 {metrics['best_silhouette_score']:.4f}。",
+        f"PCA 前三个主成分合计解释 {metrics['pca_explained_variance_total']:.2%} 的标准化特征方差。",
+        "",
+    ]
+    for row in characteristics.itertuples(index=False):
+        lines.extend([f"## 簇 {row.cluster}：{row.title}", "", row.description, ""])
+    lines.extend([
+        "## 解释边界", "",
+        "这些分组只描述 KEV 目录记录在时间、处置期限、CWE、厂商频数、产品频数和勒索软件确认标签上的结构差异。",
+        "它们不是漏洞风险等级、攻击概率、厂商安全性、实际攻击强度或修复难度。Unknown 也不表示未被勒索软件利用。", "",
+    ])
+    return "\n".join(lines)
+
+
 def build_ml_features(df: pd.DataFrame) -> pd.DataFrame:
     """Create deterministic numeric features without ordinal-encoding labels."""
     required = {
@@ -104,6 +157,7 @@ def run_ml_clustering(df: pd.DataFrame, random_state: int = 42) -> AnalysisArtif
         .assign(cluster=assignments["cluster"].to_numpy())
         .groupby("cluster").mean().reset_index()
     )
+    characteristics = build_cluster_characteristics(profiles, standardized_profiles)
     metrics = {
         "selected_k": selected_k,
         "best_silhouette_score": float(
@@ -122,6 +176,7 @@ def run_ml_clustering(df: pd.DataFrame, random_state: int = 42) -> AnalysisArtif
             "cluster_profiles": profiles,
             "cluster_profiles_standardized": standardized_profiles,
             "k_selection": k_selection,
+            "cluster_characteristics": characteristics,
         },
         metrics=metrics,
         figures=build_ml_figures(assignments, profiles, standardized_profiles, k_selection, metrics),
