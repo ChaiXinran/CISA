@@ -2,6 +2,10 @@
 
 from .cwe import build_cwe_by_year, build_cwe_summary, explode_cwes, run_cwe_analysis
 from .queries import filter_kev, run_query_cases
+from .ml_clustering import (
+    build_cluster_characteristics, build_ml_features, render_cluster_interpretation,
+    run_ml_clustering, select_cluster_count,
+)
 from .ransomware import analyze_ransomware, build_ransomware_by_year, build_ransomware_summary
 from .temporal import (
     analyze_deadlines,
@@ -23,6 +27,8 @@ __all__ = [
     "build_cwe_summary",
     "build_annual_summary",
     "build_monthly_series",
+    "build_ml_features",
+    "build_cluster_characteristics",
     "build_ransomware_by_year",
     "build_ransomware_summary",
     "build_vendor_product_summary",
@@ -32,6 +38,9 @@ __all__ = [
     "filter_kev",
     "run_cwe_analysis",
     "run_query_cases",
+    "run_ml_clustering",
+    "render_cluster_interpretation",
+    "select_cluster_count",
     "run_temporal_analysis",
     "run_vendor_analysis",
 ]

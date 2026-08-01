@@ -42,6 +42,7 @@ def build_report(
     vendor: AnalysisArtifacts,
     cwe: AnalysisArtifacts,
     queries: AnalysisArtifacts,
+    ml: AnalysisArtifacts,
     figures: dict[str, Any],
 ) -> Path:
     """Render all A-line and B-line artifacts into one offline HTML file."""
@@ -60,7 +61,7 @@ def build_report(
 
     css = (template_path.parent / "assets" / "report.css").read_text(encoding="utf-8")
     annual = temporal.tables["annual_additions"]
-    all_figures = {**figures, **vendor.figures, **cwe.figures}
+    all_figures = {**figures, **vendor.figures, **cwe.figures, **ml.figures}
     figure_html = _figure_fragments(all_figures)
     context = {
         "metadata": metadata,
@@ -87,6 +88,11 @@ def build_report(
             "metrics": queries.metrics,
             "tables": {name: _table_records(table) for name, table in queries.tables.items()},
         },
+        "ml": {
+            "metrics": ml.metrics,
+            "tables": {name: _table_records(table) for name, table in ml.tables.items()},
+            "figure_html": {name: figure_html[name] for name in ml.figures},
+        },
         "css": css,
     }
     html = environment.get_template("report.html.j2").render(**context)
@@ -94,4 +100,3 @@ def build_report(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(html, encoding="utf-8")
     return output
-
