@@ -16,6 +16,7 @@ from kev_analysis.analysis import (  # noqa: E402
     run_cwe_analysis,
     run_query_cases,
     run_ml_clustering,
+    render_cluster_interpretation,
     run_temporal_analysis,
     run_vendor_analysis,
 )
@@ -72,6 +73,10 @@ def main() -> int:
     for name, table in ml.tables.items():
         export_table(table, args.output / "ml" / f"{name}.csv")
     export_json(ml.metrics, args.output / "metrics/ml_metrics.json")
+    interpretation = render_cluster_interpretation(ml.tables["cluster_characteristics"], ml.metrics)
+    interpretation_path = args.output / "ml/cluster_interpretation.md"
+    interpretation_path.parent.mkdir(parents=True, exist_ok=True)
+    interpretation_path.write_text(interpretation, encoding="utf-8")
     figures = build_temporal_figures(
         temporal.tables["monthly_additions"], temporal.tables["annual_additions"],
         temporal.tables["deadline_frequency"], prepared,

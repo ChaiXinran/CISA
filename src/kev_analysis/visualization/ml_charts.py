@@ -67,6 +67,24 @@ def build_ml_figures(
     ))
     heatmap.update_layout(title="聚类特征指纹热力图")
 
+    deviation = standardized_profiles.melt(
+        id_vars="cluster", value_vars=list(FEATURE_LABELS),
+        var_name="feature", value_name="standardized_mean",
+    )
+    deviation["feature_label"] = deviation["feature"].map(FEATURE_LABELS)
+    deviation["cluster_label"] = deviation["cluster"].map(lambda value: f"簇 {value}")
+    deviation["direction"] = deviation["standardized_mean"].map(lambda value: "高于总体" if value >= 0 else "低于总体")
+    deviation_chart = px.bar(
+        deviation, x="standardized_mean", y="feature_label", facet_col="cluster_label",
+        facet_col_wrap=4, color="direction", orientation="h",
+        color_discrete_map={"高于总体": "#d1495b", "低于总体": "#2878a5"},
+        labels={"standardized_mean": "相对总体均值（标准差）", "feature_label": "", "direction": "方向"},
+        title="每个聚类的特征偏离：红色高于总体，蓝色低于总体",
+    )
+    deviation_chart.add_vline(x=0, line_color="#667781", line_width=1)
+    deviation_chart.update_layout(height=720)
+    deviation_chart.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split("=")[-1]))
+
     radar = go.Figure()
     feature_names = list(FEATURE_LABELS)
     for index, row in standardized_profiles.iterrows():
@@ -86,10 +104,10 @@ def build_ml_figures(
     size_chart.update_layout(title="聚类规模构成", annotations=[{
         "text": f"k={selected_k}", "x": .5, "y": .5, "showarrow": False, "font": {"size": 22}
     }])
-    figures = (selection, scatter, scatter_3d, heatmap, radar, size_chart)
+    figures = (selection, scatter, scatter_3d, heatmap, deviation_chart, radar, size_chart)
     for figure in figures:
         figure.update_layout(template="plotly_white", legend_title_text="聚类")
     return dict(zip(
-        ["ml_k_selection", "ml_pca_scatter", "ml_pca_3d", "ml_profile_heatmap", "ml_profile_radar", "ml_cluster_sizes"],
+        ["ml_k_selection", "ml_pca_scatter", "ml_pca_3d", "ml_profile_heatmap", "ml_feature_deviation", "ml_profile_radar", "ml_cluster_sizes"],
         figures, strict=True,
     ))

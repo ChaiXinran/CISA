@@ -9,10 +9,16 @@
     <div class="stat"><span>随机种子</span><strong>{{ ml.metrics.random_state }}</strong></div>
   </div>
   <div class="callout"><strong>解释边界：</strong>聚类仅表示 KEV 目录记录的字段结构差异，不是风险等级、攻击概率、厂商安全性或修复难度。</div>
+  <div class="cluster-notes">
+  {% for row in ml.tables.cluster_characteristics %}
+    <article class="callout"><strong>簇 {{ row.cluster }} · {{ row.title }}</strong><br>{{ row.description }}</article>
+  {% endfor %}
+  </div>
   <div class="chart">{{ ml.figure_html.ml_k_selection | safe }}</div>
   <div class="chart">{{ ml.figure_html.ml_pca_3d | safe }}</div>
   <div class="chart">{{ ml.figure_html.ml_pca_scatter | safe }}</div>
   <div class="chart">{{ ml.figure_html.ml_profile_heatmap | safe }}</div>
+  <div class="chart">{{ ml.figure_html.ml_feature_deviation | safe }}</div>
   <div class="chart">{{ ml.figure_html.ml_profile_radar | safe }}</div>
   <div class="chart">{{ ml.figure_html.ml_cluster_sizes | safe }}</div>
   <div class="table-wrap">
