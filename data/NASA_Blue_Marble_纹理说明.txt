@@ -1,0 +1,9 @@
+影像名称：The Blue Marble — Land Surface, Ocean Color and Sea Ice
+本地文件：nasa_blue_marble_2048.jpg
+尺寸：2048 × 1024
+来源机构：NASA Goddard Space Flight Center / Earth Observatory
+产品页面：https://visibleearth.nasa.gov/images/57730/the-blue-marble-land-surface-ocean-color-and-sea-ice
+原始影像：https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.jpg
+作者与处理：Reto Stöckli、Robert Simmon；基于 MODIS 等卫星观测数据。
+
+项目将影像离线量化为 Plotly 3D Surface 调色板纹理。纹理只用于地球空间参照和视觉展示；厂商点仍只表示厂商总部位置，不表示漏洞、攻击、设备或受害组织所在地。

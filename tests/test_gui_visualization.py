@@ -7,7 +7,12 @@ os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu"
 import pandas as pd
 from kev_analysis.gui.chart_export import normalized_png_path
 from kev_analysis.gui.chart_panel import VisualizationPanel, build_linked_figures
-from kev_analysis.gui.globe_view import aggregate_vendor_locations, load_vendor_locations
+from kev_analysis.gui.globe_view import (
+    aggregate_vendor_locations, build_globe_figure, load_boundary_lines,
+    load_earth_texture, load_vendor_locations,
+)
+from kev_analysis.analysis.cwe import build_cwe_summary, explode_cwes
+from kev_analysis.analysis.vendor import build_vendor_summary
 
 
 def test_location_table_has_sources_and_valid_coordinates():
@@ -36,8 +41,46 @@ def test_mapping_counts_mapped_and_unmapped_without_mutation(prepared_df):
 def test_linked_figures_handle_data_and_empty_results(prepared_df):
     figures = build_linked_figures(prepared_df)
     assert set(figures) == {"monthly", "vendor", "cwe"}
+    assert len(figures["vendor"].data[0].y) == len(build_vendor_summary(prepared_df))
+    assert len(figures["cwe"].data[0].y) == len(
+        build_cwe_summary(explode_cwes(prepared_df), len(prepared_df))
+    )
     empty = prepared_df.iloc[0:0].copy()
     assert set(build_linked_figures(empty)) == {"monthly", "vendor", "cwe"}
+
+
+def test_globe_is_fully_local_3d_surface():
+    locations = load_vendor_locations().head(2).copy()
+    locations["count"] = [10, 5]
+    locations["known_count"] = [4, 1]
+    locations["known_share"] = [0.4, 0.2]
+    figure = build_globe_figure(locations)
+    assert figure.data[0].type == "surface"
+    assert figure.data[0].opacity == 1.0
+    assert figure.data[0].lighting.specular == 0.0
+    assert figure.data[0].lighting.diffuse == 0.0
+    assert figure.data[1].type == "scatter3d"
+    assert figure.data[1].mode == "lines"
+    assert figure.data[2].type == "scatter3d"
+    assert figure.data[2].mode == "markers+text"
+    assert list(figure.data[2].text) == ["Microsoft", "Cisco"]
+    assert figure.data[2].name == "厂商总部位置"
+    assert figure.layout.geo.to_plotly_json() == {}
+
+
+def test_natural_earth_boundaries_are_local_3d_lines():
+    x, y, z = load_boundary_lines()
+    assert len(x) == len(y) == len(z)
+    assert len(x) > 5_000
+    assert any(value is None for value in x)
+
+
+def test_nasa_texture_is_local_and_matches_surface_grid():
+    texture, colorscale = load_earth_texture()
+    assert texture.shape == (361, 721)
+    assert len(colorscale) == 256
+    assert float(texture.min()) >= 0
+    assert float(texture.max()) <= 255
 
 
 def test_visualization_panel_exposes_fixed_contract():

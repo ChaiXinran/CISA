@@ -1,0 +1,8 @@
+数据名称：Natural Earth Admin 0 – Countries，1:110m
+项目用途：GUI 离线 3D 地球的大陆轮廓和国家边界
+本地文件：ne_110m_admin_0_countries.geojson
+官方页面：https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+GeoJSON 来源：https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson
+许可：Natural Earth 数据属于 public domain，可用于个人、教育和商业用途。
+
+边界仅作为厂商总部位置的空间参照，不表示漏洞发生地、攻击地点、设备所在地或受害组织所在地。

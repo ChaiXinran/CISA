@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
+from functools import lru_cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from PIL import Image
 from PyQt6.QtCore import QUrl, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -18,9 +22,72 @@ LOCATION_COLUMNS = [
     "vendor_clean", "country", "city", "latitude", "longitude", "location_type", "source"
 ]
 
+GLOBE_LONGITUDE_SAMPLES = 721
+GLOBE_LATITUDE_SAMPLES = 361
+
 
 def default_location_path() -> Path:
     return Path(__file__).resolve().parents[3] / "data" / "vendor_locations.csv"
+
+
+def default_boundary_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "data" / "ne_110m_admin_0_countries.geojson"
+
+
+def default_texture_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "data" / "nasa_blue_marble_2048.jpg"
+
+
+@lru_cache(maxsize=2)
+def load_earth_texture(
+    path: str | Path | None = None,
+    width: int = GLOBE_LONGITUDE_SAMPLES,
+    height: int = GLOBE_LATITUDE_SAMPLES,
+    colors: int = 256,
+) -> tuple[np.ndarray, list[list[object]]]:
+    """Load NASA Blue Marble as a Plotly-compatible indexed surface texture."""
+    source = Path(path) if path is not None else default_texture_path()
+    with Image.open(source) as image:
+        resized = image.convert("RGB").resize((width, height), Image.Resampling.LANCZOS)
+        indexed = resized.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+        indices = np.flipud(np.asarray(indexed, dtype=float))
+        palette = indexed.getpalette()[: colors * 3]
+    colorscale = []
+    for index in range(colors):
+        red, green, blue = palette[index * 3:index * 3 + 3]
+        colorscale.append([index / (colors - 1), f"rgb({red},{green},{blue})"])
+    return indices, colorscale
+
+
+@lru_cache(maxsize=2)
+def load_boundary_lines(path: str | Path | None = None) -> tuple[list[float | None], ...]:
+    """Convert local Natural Earth polygon rings to one offline 3D line layer."""
+    source = Path(path) if path is not None else default_boundary_path()
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    line_x: list[float | None] = []
+    line_y: list[float | None] = []
+    line_z: list[float | None] = []
+    radius = 1.003
+    for feature in payload.get("features", []):
+        geometry = feature.get("geometry") or {}
+        coordinates = geometry.get("coordinates", [])
+        if geometry.get("type") == "Polygon":
+            polygons = [coordinates]
+        elif geometry.get("type") == "MultiPolygon":
+            polygons = coordinates
+        else:
+            continue
+        for polygon in polygons:
+            for ring in polygon:
+                if not ring:
+                    continue
+                longitude = np.radians([point[0] for point in ring])
+                latitude = np.radians([point[1] for point in ring])
+                line_x.extend((radius * np.cos(latitude) * np.cos(longitude)).tolist())
+                line_y.extend((radius * np.cos(latitude) * np.sin(longitude)).tolist())
+                line_z.extend((radius * np.sin(latitude)).tolist())
+                line_x.append(None); line_y.append(None); line_z.append(None)
+    return line_x, line_y, line_z
 
 
 def load_vendor_locations(path: str | Path | None = None) -> pd.DataFrame:
@@ -73,10 +140,44 @@ def aggregate_vendor_locations(
 
 
 def build_globe_figure(mapped: pd.DataFrame) -> go.Figure:
-    """Build an orthographic globe; locations represent headquarters only."""
-    figure = go.Figure()
+    """Build a fully offline 3D globe; locations represent headquarters only."""
+    # Half-degree sampling keeps the NASA texture clear while reducing the
+    # surface to about 260k vertices for smoother WebEngine interaction.
+    longitude = np.linspace(-np.pi, np.pi, GLOBE_LONGITUDE_SAMPLES)
+    latitude = np.linspace(-np.pi / 2, np.pi / 2, GLOBE_LATITUDE_SAMPLES)
+    lon_grid, lat_grid = np.meshgrid(longitude, latitude)
+    sphere_x = np.cos(lat_grid) * np.cos(lon_grid)
+    sphere_y = np.cos(lat_grid) * np.sin(lon_grid)
+    sphere_z = np.sin(lat_grid)
+    texture, texture_colorscale = load_earth_texture(width=len(longitude), height=len(latitude))
+    figure = go.Figure(go.Surface(
+        x=sphere_x, y=sphere_y, z=sphere_z,
+        surfacecolor=texture,
+        colorscale=texture_colorscale, cmin=0, cmax=len(texture_colorscale) - 1,
+        showscale=False, hoverinfo="skip", opacity=1.0,
+        # Uniform ambient illumination preserves the NASA texture without a
+        # moving white WebGL glare spot on the globe.
+        lighting={
+            "ambient": 1.0, "diffuse": 0.0, "roughness": 1.0,
+            "specular": 0.0, "fresnel": 0.0,
+        },
+    ))
+    boundary_x, boundary_y, boundary_z = load_boundary_lines()
+    figure.add_trace(go.Scatter3d(
+        x=boundary_x, y=boundary_y, z=boundary_z,
+        mode="lines", hoverinfo="skip", showlegend=False,
+        line={"color": "#d9e8d2", "width": 1.4},
+        name="Natural Earth 国家边界",
+    ))
     if not mapped.empty:
-        sizes = 8 + 34 * (mapped["count"] / mapped["count"].max()) ** 0.5
+        lat_radians = np.radians(mapped["latitude"].astype(float).to_numpy())
+        lon_radians = np.radians(mapped["longitude"].astype(float).to_numpy())
+        radius = 1.018
+        point_x = radius * np.cos(lat_radians) * np.cos(lon_radians)
+        point_y = radius * np.cos(lat_radians) * np.sin(lon_radians)
+        point_z = radius * np.sin(lat_radians)
+        sizes = 19 + 31 * (mapped["count"] / mapped["count"].max()) ** 0.5
+        labels = mapped["vendor_clean"].astype(str).tolist()
         hover = (
             "<b>" + mapped["vendor_clean"].astype(str) + "</b><br>"
             + mapped["city"].astype(str) + ", " + mapped["country"].astype(str)
@@ -84,24 +185,40 @@ def build_globe_figure(mapped: pd.DataFrame) -> go.Figure:
             + "<br>Known 占比：" + mapped["known_share"].map(lambda value: f"{value:.1%}")
             + "<br>位置口径：厂商总部<extra></extra>"
         )
-        figure.add_trace(go.Scattergeo(
-            lat=mapped["latitude"], lon=mapped["longitude"], text=hover,
-            customdata=mapped["vendor_clean"], hovertemplate="%{text}",
-            mode="markers", marker={
+        figure.add_trace(go.Scatter3d(
+            x=point_x, y=point_y, z=point_z, hovertext=hover,
+            customdata=mapped["vendor_clean"], hovertemplate="%{hovertext}",
+            mode="markers+text", text=labels, textposition="top center",
+            textfont={"size": 11, "color": "#071b2b", "family": "Arial Black"},
+            marker={
                 "size": sizes, "color": mapped["known_share"], "colorscale": "YlOrRd",
-                "cmin": 0, "cmax": 1, "opacity": 0.88,
-                "line": {"color": "#ffffff", "width": 1},
-                "colorbar": {"title": "Known 占比", "tickformat": ".0%"},
+                "cmin": 0, "cmax": 1, "opacity": 1.0,
+                "line": {"color": "#061520", "width": 2.2},
+                "colorbar": {
+                    "title": {"text": "Known", "side": "right"},
+                    "tickformat": ".0%", "x": 1.01, "y": 0.46, "len": 0.52,
+                    "thickness": 13, "outlinewidth": 0,
+                },
             },
+            name="厂商总部位置", showlegend=False,
         ))
-    figure.update_geos(
-        projection_type="orthographic", showland=True, landcolor="#dce8e5",
-        showocean=True, oceancolor="#c9e6f0", showcountries=True, countrycolor="#ffffff",
-    )
     figure.update_layout(
-        title="按厂商总部所在地映射的 KEV 厂商标签记录",
-        margin={"l": 0, "r": 0, "t": 48, "b": 0},
+        margin={"l": 8, "r": 92, "t": 76, "b": 8},
         paper_bgcolor="#f7f9fb", height=560,
+        title={
+            "text": "按厂商总部所在地映射的 KEV 厂商标签记录",
+            "x": 0.02, "xanchor": "left", "y": 0.97, "yanchor": "top",
+            "font": {"size": 17},
+        },
+        scene={
+            "aspectmode": "cube",
+            "xaxis": {"visible": False, "range": [-1.15, 1.15]},
+            "yaxis": {"visible": False, "range": [-1.15, 1.15]},
+            "zaxis": {"visible": False, "range": [-1.15, 1.15]},
+            "camera": {"eye": {"x": 1.65, "y": 1.45, "z": 0.85}},
+            "bgcolor": "#f7f9fb",
+        },
+        dragmode="orbit",
     )
     return figure
 
