@@ -26,6 +26,12 @@ def test_cwe_filter_is_exact_match(prepared_df):
     assert result.empty
 
 
+@pytest.mark.parametrize("invalid", ["79", "CWE-79x", " CWE-79 ", "CWE-"])
+def test_invalid_cwe_raises_value_error(prepared_df, invalid):
+    with pytest.raises(ValueError, match="CWE"):
+        filter_kev(prepared_df, cwe=invalid)
+
+
 def test_all_conditions_use_and(prepared_df):
     result, _ = filter_kev(prepared_df, vendor="acme", ransomware="Known", cwe="CWE-89")
     assert list(result["cveID"]) == ["CVE-2025-0001"]
@@ -46,3 +52,12 @@ def test_three_query_cases_are_exposed(prepared_df):
     artifacts = run_query_cases(prepared_df)
     assert len(artifacts.tables) == 3
     assert len(artifacts.metrics["query_summaries"]) == 3
+
+
+def test_query_summary_includes_known_count_and_handles_empty(prepared_df):
+    result, summary = filter_kev(prepared_df, vendor="does-not-exist")
+    assert result.empty
+    assert summary["result_count"] == 0
+    assert summary["unique_vendors"] == 0
+    assert summary["known_count"] == 0
+    assert summary["date_max"] is None

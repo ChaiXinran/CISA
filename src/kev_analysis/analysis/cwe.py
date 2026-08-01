@@ -23,9 +23,20 @@ def explode_cwes(df: pd.DataFrame) -> pd.DataFrame:
     return exploded[EXPLODED_COLUMNS].reset_index(drop=True)
 
 
-def build_cwe_summary(exploded_df: pd.DataFrame, total_records: int) -> pd.DataFrame:
-    """Summarize each CWE using unique CVE counts."""
+def build_cwe_summary(exploded_df: pd.DataFrame, records_with_cwe: int) -> pd.DataFrame:
+    """Summarize CWE occurrence using the assignment's subset denominators."""
     _require_columns(exploded_df, {"cveID", "cwe", "knownRansomwareCampaignUse"})
+    unique_status_records = exploded_df.drop_duplicates("cveID")
+    known_denominator = int(
+        unique_status_records.loc[
+            unique_status_records["knownRansomwareCampaignUse"].eq("Known"), "cveID"
+        ].nunique()
+    )
+    unknown_denominator = int(
+        unique_status_records.loc[
+            unique_status_records["knownRansomwareCampaignUse"].eq("Unknown"), "cveID"
+        ].nunique()
+    )
     rows = []
     for cwe, group in exploded_df.groupby("cwe", sort=False):
         unique = group.drop_duplicates(["cwe", "cveID"])
@@ -34,10 +45,10 @@ def build_cwe_summary(exploded_df: pd.DataFrame, total_records: int) -> pd.DataF
         count = int(unique["cveID"].nunique())
         rows.append({
             "cwe": cwe, "cve_count": count,
-            "record_share": count / total_records if total_records else 0.0,
+            "record_share": count / records_with_cwe if records_with_cwe else 0.0,
             "known_count": known, "unknown_count": unknown,
-            "known_share": known / count if count else 0.0,
-            "unknown_share": unknown / count if count else 0.0,
+            "known_share": known / known_denominator if known_denominator else 0.0,
+            "unknown_share": unknown / unknown_denominator if unknown_denominator else 0.0,
         })
     result = pd.DataFrame(rows, columns=[
         "cwe", "cve_count", "record_share", "known_count", "unknown_count",
@@ -68,7 +79,8 @@ def run_cwe_analysis(df: pd.DataFrame) -> AnalysisArtifacts:
     from kev_analysis.visualization.cwe_charts import build_cwe_figures
 
     exploded = explode_cwes(df)
-    summary = build_cwe_summary(exploded, len(df))
+    records_with_cwe = int(df["cwes"].map(bool).sum())
+    summary = build_cwe_summary(exploded, records_with_cwe)
     by_year = build_cwe_by_year(exploded)
     comparison = summary[[
         "cwe", "cve_count", "known_count", "unknown_count", "known_share", "unknown_share"
@@ -81,8 +93,14 @@ def run_cwe_analysis(df: pd.DataFrame) -> AnalysisArtifacts:
             "cwe_ransomware_comparison": comparison,
         },
         metrics={
-            "records_with_cwe": int(df["cwes"].map(bool).sum()),
+            "records_with_cwe": records_with_cwe,
             "records_without_cwe": int((~df["cwes"].map(bool)).sum()),
+            "known_records_with_cwe": int(
+                df.loc[df["knownRansomwareCampaignUse"].eq("Known"), "cwes"].map(bool).sum()
+            ),
+            "unknown_records_with_cwe": int(
+                df.loc[df["knownRansomwareCampaignUse"].eq("Unknown"), "cwes"].map(bool).sum()
+            ),
             "distinct_cwes": int(summary.shape[0]),
         },
         figures=build_cwe_figures(summary, by_year),

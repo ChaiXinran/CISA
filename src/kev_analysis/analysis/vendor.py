@@ -14,10 +14,10 @@ def _require_columns(df: pd.DataFrame, columns: set[str]) -> None:
 
 def build_vendor_summary(df: pd.DataFrame) -> pd.DataFrame:
     """Count vendor labels and ransomware flags using decimal shares."""
-    _require_columns(df, {"vendor_clean", "knownRansomwareCampaignUse"})
+    _require_columns(df, {"vendor_clean", "product_clean", "knownRansomwareCampaignUse"})
     if df.empty:
         return pd.DataFrame(columns=[
-            "rank", "vendor_clean", "count", "share", "cumulative_share",
+            "rank", "vendor_clean", "count", "unique_product_count", "share", "cumulative_share",
             "known_count", "unknown_count", "known_share", "unknown_share",
         ])
 
@@ -29,6 +29,8 @@ def build_vendor_summary(df: pd.DataFrame) -> pd.DataFrame:
     flags = flags.reindex(columns=["Known", "Unknown"], fill_value=0)
     flags = flags.rename(columns={"Known": "known_count", "Unknown": "unknown_count"})
     result = counts.merge(flags, left_on="vendor_clean", right_index=True, how="left")
+    product_counts = df.groupby("vendor_clean", dropna=False)["product_clean"].nunique(dropna=True)
+    result["unique_product_count"] = result["vendor_clean"].map(product_counts).astype("int64")
     result = result.sort_values(["count", "vendor_clean"], ascending=[False, True], kind="mergesort")
     result = result.reset_index(drop=True)
     result.insert(0, "rank", result.index + 1)
@@ -37,7 +39,7 @@ def build_vendor_summary(df: pd.DataFrame) -> pd.DataFrame:
     result["known_share"] = result["known_count"] / result["count"]
     result["unknown_share"] = result["unknown_count"] / result["count"]
     return result[[
-        "rank", "vendor_clean", "count", "share", "cumulative_share",
+        "rank", "vendor_clean", "count", "unique_product_count", "share", "cumulative_share",
         "known_count", "unknown_count", "known_share", "unknown_share",
     ]]
 

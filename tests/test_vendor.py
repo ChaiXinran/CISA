@@ -12,6 +12,13 @@ def test_vendor_shares_are_decimal_and_sum_to_one(prepared_df):
     assert summary["unknown_share"].between(0, 1).all()
 
 
+def test_vendor_summary_counts_unique_products(prepared_df):
+    summary = build_vendor_summary(prepared_df).set_index("vendor_clean")
+    assert summary.loc["Acme", "unique_product_count"] == 1
+    assert summary.loc["acme Labs", "unique_product_count"] == 1
+    assert summary.loc["Beta", "unique_product_count"] == 2
+
+
 def test_vendor_product_ties_have_stable_order(prepared_df):
     summary = build_vendor_product_summary(prepared_df)
     tied = summary[summary["count"] == 1]

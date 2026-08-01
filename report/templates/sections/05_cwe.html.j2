@@ -5,8 +5,11 @@
   <ul>
     <li>含 CWE 的记录：{{ cwe.metrics.records_with_cwe }}</li>
     <li>空 CWE 列表记录：{{ cwe.metrics.records_without_cwe }}</li>
+    <li>Known 且含 CWE 的记录：{{ cwe.metrics.known_records_with_cwe }}</li>
+    <li>Unknown 且含 CWE 的记录：{{ cwe.metrics.unknown_records_with_cwe }}</li>
     <li>不同 CWE 标签：{{ cwe.metrics.distinct_cwes }}</li>
   </ul>
+  <p><code>record_share</code> 以含 CWE 的全部记录为分母；<code>known_share</code> 和 <code>unknown_share</code> 分别以含 CWE 的 Known、Unknown 记录为分母。一条 CVE 可对应多个 CWE，因此各 CWE 占比之和可以超过 100%。</p>
   <div class="chart">{{ cwe.figure_html.cwe_top20 | safe }}</div>
   <div class="chart">{{ cwe.figure_html.cwe_by_year | safe }}</div>
   <div class="chart">{{ cwe.figure_html.cwe_ransomware | safe }}</div>

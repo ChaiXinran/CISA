@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 import pandas as pd
@@ -51,6 +52,8 @@ def filter_kev(
         mask &= result["knownRansomwareCampaignUse"].eq(ransomware)
     normalized_cwe = str(cwe).upper() if cwe is not None else None
     if normalized_cwe is not None:
+        if re.fullmatch(r"CWE-[0-9]+", normalized_cwe) is None:
+            raise ValueError("cwe must match the pattern ^CWE-[0-9]+$")
         mask &= result["cwes"].map(
             lambda values: isinstance(values, list)
             and normalized_cwe in {str(value).upper() for value in values}
@@ -70,6 +73,7 @@ def filter_kev(
         "result_count": int(len(result)),
         "unique_vendors": int(result["vendor_clean"].nunique()),
         "unique_products": int(result["product_clean"].nunique()),
+        "known_count": int(result["knownRansomwareCampaignUse"].eq("Known").sum()),
         "date_min": _iso(result_dates.min()) if not result.empty else None,
         "date_max": _iso(result_dates.max()) if not result.empty else None,
     }

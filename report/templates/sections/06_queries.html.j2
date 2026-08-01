@@ -5,7 +5,7 @@
   {% for name, summary in queries.metrics.query_summaries.items() %}
   <article>
     <h3>{{ name }}</h3>
-    <p>结果 {{ summary.result_count }} 条；厂商 {{ summary.unique_vendors }} 个；产品 {{ summary.unique_products }} 个；日期范围 {{ summary.date_min or "无" }} 至 {{ summary.date_max or "无" }}。</p>
+    <p>结果 {{ summary.result_count }} 条；厂商 {{ summary.unique_vendors }} 个；产品 {{ summary.unique_products }} 个；其中 Known {{ summary.known_count }} 条；日期范围 {{ summary.date_min or "无" }} 至 {{ summary.date_max or "无" }}。</p>
     <dl>
       {% for key, value in summary.filters.items() %}<dt>{{ key }}</dt><dd>{{ value if value is not none else "未设置" }}</dd>{% endfor %}
     </dl>

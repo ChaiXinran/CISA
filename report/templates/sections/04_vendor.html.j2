@@ -7,6 +7,7 @@
     <div class="stat"><span>CR10</span><strong>{{ vendor.metrics.vendor_concentration.cr10 | percent }}</strong></div>
     <div class="stat"><span>HHI</span><strong>{{ "%.4f"|format(vendor.metrics.vendor_concentration.hhi) }}</strong></div>
   </div>
+  <p>厂商汇总表同时统计每个厂商标签对应的不同产品标签数量（<code>unique_product_count</code>）。</p>
   <div class="chart">{{ vendor.figure_html.vendor_top20 | safe }}</div>
   <div class="chart">{{ vendor.figure_html.vendor_product_top30 | safe }}</div>
   <div class="chart">{{ vendor.figure_html.vendor_pareto | safe }}</div>
