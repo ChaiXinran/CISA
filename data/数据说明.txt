@@ -1,0 +1,42 @@
+数据集：CISA Known Exploited Vulnerabilities Catalog（KEV）冻结快照
+课程文件：CISA_KEV_2026-07-29.json
+下载日期：2026-07-30（Asia/Shanghai）
+目录版本：2026.07.29
+目录发布时间：2026-07-29T18:45:59.5809Z
+文件大小：1,567,768 字节
+SHA-256：15B44D7C9C57F3D27128999E09F0FC991659A0B64713B5E1AF599565447A2409
+
+官方来源：
+目录页：https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+实时 JSON：https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+JSON Schema：https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json
+
+不可变官方快照：
+仓库：https://github.com/cisagov/kev-data
+提交：564b8c59f9039926e2d9548ba5b334db45cb6b50
+JSON：https://raw.githubusercontent.com/cisagov/kev-data/564b8c59f9039926e2d9548ba5b334db45cb6b50/known_exploited_vulnerabilities.json
+
+课程文件与上述不可变 JSON 逐字节一致。
+
+文件结构：
+- 顶层字段为 title、catalogVersion、dateReleased、count、vulnerabilities；
+- count=1,656，与 vulnerabilities 数组长度一致；
+- 每条漏洞记录含 11 个字段：cveID、vendorProject、product、vulnerabilityName、dateAdded、shortDescription、requiredAction、dueDate、knownRansomwareCampaignUse、notes、cwes；
+- cveID 无重复，编号、dateAdded 和 dueDate 均可解析，且没有 dueDate 早于 dateAdded 的记录；
+- 171 条记录的 cwes 为空列表，其他主要字段完整；cwes 是多值列表，不是互斥类别；
+- vendorProject 有 6 条、product 有 10 条记录带首尾空格；分析时应保留原字段，并仅用 str.strip() 建立确定性的清理列，不做模糊合并；
+- knownRansomwareCampaignUse 只有 Known 和 Unknown。
+
+字段边界：
+- dateAdded 是加入 KEV 目录的日期，不是漏洞披露、发现、首次攻击或 CVE 分配日期；
+- dueDate 是目录中 required action 的到期日期，不是实际修复耗时，也不是所有机构的通用期限；
+- Unknown 表示 CISA 尚无被勒索软件活动利用的确认，不表示“没有被利用”；
+- 一条记录对应一个 CVE，不代表一次攻击、一个受害组织或一台设备；
+- KEV 不含 CVSS、EPSS、攻击次数、资产数量或市场占有率，不能仅按厂商记录数评价厂商安全性。
+
+许可：CC0 1.0 Universal
+https://www.cisa.gov/sites/default/files/licenses/kev/license.txt
+KEV 数据可以合法使用、复制、修改和再分发。notes 中第三方链接的内容仍受第三方条款约束；不得使用 CISA/DHS 标识或暗示课程及分析获得官方背书。
+
+版本说明：
+本题只提供并使用上述 JSON。CISA 实时 JSON、CSV 和官方仓库镜像可能在更新时短暂不同步，因此不得另行下载实时 CSV 后宣称它与课程 JSON 必然一致。课程评分只以本地 JSON 和 SHA-256 为准。
