@@ -4,12 +4,13 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")
 
+import numpy as np
 import pandas as pd
 from kev_analysis.gui.chart_export import normalized_png_path
 from kev_analysis.gui.chart_panel import VisualizationPanel, build_linked_figures
 from kev_analysis.gui.globe_view import (
     aggregate_vendor_locations, build_globe_figure, load_boundary_lines,
-    load_earth_texture, load_vendor_locations,
+    load_earth_texture, load_political_texture, load_vendor_locations,
 )
 from kev_analysis.analysis.cwe import build_cwe_summary, explode_cwes
 from kev_analysis.analysis.vendor import build_vendor_summary
@@ -57,13 +58,16 @@ def test_globe_is_fully_local_3d_surface():
     figure = build_globe_figure(locations)
     assert figure.data[0].type == "surface"
     assert figure.data[0].opacity == 1.0
-    assert figure.data[0].lighting.specular == 0.0
-    assert figure.data[0].lighting.diffuse == 0.0
+    assert figure.data[0].lighting.specular == 0.03
+    assert figure.data[0].lighting.diffuse == 0.62
+    assert figure.layout.paper_bgcolor == "rgba(0,0,0,0)"
     assert figure.data[1].type == "scatter3d"
     assert figure.data[1].mode == "lines"
     assert figure.data[2].type == "scatter3d"
     assert figure.data[2].mode == "markers+text"
     assert list(figure.data[2].text) == ["Microsoft", "Cisco"]
+    assert list(figure.data[2].meta) == [10, 5]
+    assert max(figure.data[2].marker.size) <= 26
     assert figure.data[2].name == "厂商总部位置"
     assert figure.layout.geo.to_plotly_json() == {}
 
@@ -81,6 +85,13 @@ def test_nasa_texture_is_local_and_matches_surface_grid():
     assert len(colorscale) == 256
     assert float(texture.min()) >= 0
     assert float(texture.max()) <= 255
+
+
+def test_political_texture_is_local_and_terrain_free():
+    texture, colorscale = load_political_texture()
+    assert texture.shape == (361, 721)
+    assert len(colorscale) == 6
+    assert set(np.unique(texture)).issubset(set(range(6)))
 
 
 def test_visualization_panel_exposes_fixed_contract():

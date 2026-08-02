@@ -125,6 +125,8 @@ class VisualizationPanel(QWidget):
                     click_customdata=name in {"globe", "vendor"},
                     adaptive_3d_markers=name == "globe",
                     vertical_scroll=name in {"vendor", "cwe"},
+                    background="#020813" if name == "globe" else "#f7f9fb",
+                    starfield=name == "globe",
                 )
             self._show_selected()
         self.export_available.emit(True)

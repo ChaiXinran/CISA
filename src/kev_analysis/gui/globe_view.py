@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from PIL import Image
+from PIL import Image, ImageDraw
 from PyQt6.QtCore import QUrl, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -56,6 +56,61 @@ def load_earth_texture(
     for index in range(colors):
         red, green, blue = palette[index * 3:index * 3 + 3]
         colorscale.append([index / (colors - 1), f"rgb({red},{green},{blue})"])
+    return indices, colorscale
+
+
+@lru_cache(maxsize=2)
+def load_political_texture(
+    path: str | Path | None = None,
+    width: int = GLOBE_LONGITUDE_SAMPLES,
+    height: int = GLOBE_LATITUDE_SAMPLES,
+) -> tuple[np.ndarray, list[list[object]]]:
+    """Render a restrained, terrain-free political texture from local boundaries."""
+    source = Path(path) if path is not None else default_boundary_path()
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    ocean = (4, 18, 36)
+    land_colors = (
+        (43, 68, 73), (48, 76, 78), (52, 81, 80),
+        (57, 85, 82), (46, 72, 76),
+    )
+    image = Image.new("RGB", (width, height), ocean)
+    draw = ImageDraw.Draw(image)
+
+    def project(ring):
+        return [
+            ((float(lon) + 180.0) / 360.0 * (width - 1),
+             (90.0 - float(lat)) / 180.0 * (height - 1))
+            for lon, lat, *_ in ring
+        ]
+
+    for index, feature in enumerate(payload.get("features", [])):
+        geometry = feature.get("geometry") or {}
+        coordinates = geometry.get("coordinates", [])
+        if geometry.get("type") == "Polygon":
+            polygons = [coordinates]
+        elif geometry.get("type") == "MultiPolygon":
+            polygons = coordinates
+        else:
+            continue
+        fill = land_colors[index % len(land_colors)]
+        for polygon in polygons:
+            if not polygon:
+                continue
+            draw.polygon(project(polygon[0]), fill=fill)
+            for hole in polygon[1:]:
+                draw.polygon(project(hole), fill=ocean)
+
+    # The sphere grid runs south-to-north, hence the vertical flip.
+    pixels = np.flipud(np.asarray(image, dtype=np.uint8))
+    palette = [ocean, *land_colors]
+    color_to_index = {color: index for index, color in enumerate(palette)}
+    indices = np.zeros((height, width), dtype=float)
+    for color, index in color_to_index.items():
+        indices[np.all(pixels == color, axis=2)] = index
+    colorscale = [
+        [index / (len(palette) - 1), f"rgb({r},{g},{b})"]
+        for index, (r, g, b) in enumerate(palette)
+    ]
     return indices, colorscale
 
 
@@ -149,24 +204,27 @@ def build_globe_figure(mapped: pd.DataFrame) -> go.Figure:
     sphere_x = np.cos(lat_grid) * np.cos(lon_grid)
     sphere_y = np.cos(lat_grid) * np.sin(lon_grid)
     sphere_z = np.sin(lat_grid)
-    texture, texture_colorscale = load_earth_texture(width=len(longitude), height=len(latitude))
+    texture, texture_colorscale = load_political_texture(
+        width=len(longitude), height=len(latitude)
+    )
     figure = go.Figure(go.Surface(
         x=sphere_x, y=sphere_y, z=sphere_z,
         surfacecolor=texture,
         colorscale=texture_colorscale, cmin=0, cmax=len(texture_colorscale) - 1,
         showscale=False, hoverinfo="skip", opacity=1.0,
-        # Uniform ambient illumination preserves the NASA texture without a
-        # moving white WebGL glare spot on the globe.
+        # Soft directional lighting keeps the map globe-like without exposing
+        # terrain or producing a glossy, photorealistic surface.
         lighting={
-            "ambient": 1.0, "diffuse": 0.0, "roughness": 1.0,
-            "specular": 0.0, "fresnel": 0.0,
+            "ambient": 0.58, "diffuse": 0.62, "roughness": 1.0,
+            "specular": 0.03, "fresnel": 0.12,
         },
+        lightposition={"x": 1200, "y": -900, "z": 1500},
     ))
     boundary_x, boundary_y, boundary_z = load_boundary_lines()
     figure.add_trace(go.Scatter3d(
         x=boundary_x, y=boundary_y, z=boundary_z,
         mode="lines", hoverinfo="skip", showlegend=False,
-        line={"color": "#d9e8d2", "width": 1.4},
+        line={"color": "rgba(154,205,211,0.62)", "width": 1.0},
         name="Natural Earth 国家边界",
     ))
     if not mapped.empty:
@@ -176,8 +234,11 @@ def build_globe_figure(mapped: pd.DataFrame) -> go.Figure:
         point_x = radius * np.cos(lat_radians) * np.cos(lon_radians)
         point_y = radius * np.cos(lat_radians) * np.sin(lon_radians)
         point_z = radius * np.sin(lat_radians)
-        sizes = 19 + 31 * (mapped["count"] / mapped["count"].max()) ** 0.5
-        labels = mapped["vendor_clean"].astype(str).tolist()
+        # A bounded logarithmic scale remains distinguishable without letting a
+        # few large vendors cover neighbouring headquarters.
+        log_counts = np.log1p(mapped["count"].astype(float))
+        log_max = float(log_counts.max()) if not log_counts.empty else 1.0
+        sizes = 8 + 18 * (log_counts / log_max)
         hover = (
             "<b>" + mapped["vendor_clean"].astype(str) + "</b><br>"
             + mapped["city"].astype(str) + ", " + mapped["country"].astype(str)
@@ -187,36 +248,46 @@ def build_globe_figure(mapped: pd.DataFrame) -> go.Figure:
         )
         figure.add_trace(go.Scatter3d(
             x=point_x, y=point_y, z=point_z, hovertext=hover,
-            customdata=mapped["vendor_clean"], hovertemplate="%{hovertext}",
-            mode="markers+text", text=labels, textposition="top center",
-            textfont={"size": 11, "color": "#071b2b", "family": "Arial Black"},
+            customdata=mapped["vendor_clean"], meta=mapped["count"].astype(int).tolist(),
+            hovertemplate="%{hovertext}",
+            mode="markers+text", text=mapped["vendor_clean"].astype(str).tolist(),
+            textposition="top center",
+            textfont={"size": 10, "color": "#ffffff", "family": "Microsoft YaHei"},
             marker={
                 "size": sizes, "color": mapped["known_share"], "colorscale": "YlOrRd",
                 "cmin": 0, "cmax": 1, "opacity": 1.0,
                 "line": {"color": "#061520", "width": 2.2},
                 "colorbar": {
-                    "title": {"text": "Known", "side": "right"},
-                    "tickformat": ".0%", "x": 1.01, "y": 0.46, "len": 0.52,
-                    "thickness": 13, "outlinewidth": 0,
+                    "title": {
+                        "text": "Known 占比", "side": "top",
+                        "font": {"color": "#dcecf7"},
+                    },
+                    "tickformat": ".0%", "x": 0.98, "y": 0.45, "len": 0.38,
+                    "thickness": 11, "outlinewidth": 0,
+                    "tickfont": {"color": "#dcecf7"},
                 },
             },
             name="厂商总部位置", showlegend=False,
         ))
     figure.update_layout(
-        margin={"l": 8, "r": 92, "t": 76, "b": 8},
-        paper_bgcolor="#f7f9fb", height=560,
+        margin={"l": 8, "r": 64, "t": 58, "b": 8},
+        paper_bgcolor="rgba(0,0,0,0)", height=560,
         title={
-            "text": "按厂商总部所在地映射的 KEV 厂商标签记录",
-            "x": 0.02, "xanchor": "left", "y": 0.97, "yanchor": "top",
-            "font": {"size": 17},
+            "text": "KEV 厂商总部位置 <span style='font-size:12px;color:#657786'>· 悬停查看详情，点击筛选厂商</span>",
+            "x": 0.02, "xanchor": "left", "y": 0.975, "yanchor": "top",
+            "font": {"size": 17, "color": "#eef8ff"},
+        },
+        hoverlabel={
+            "bgcolor": "#102a3a", "bordercolor": "#ffffff",
+            "font": {"color": "#ffffff", "size": 13},
         },
         scene={
             "aspectmode": "cube",
-            "xaxis": {"visible": False, "range": [-1.15, 1.15]},
-            "yaxis": {"visible": False, "range": [-1.15, 1.15]},
-            "zaxis": {"visible": False, "range": [-1.15, 1.15]},
-            "camera": {"eye": {"x": 1.65, "y": 1.45, "z": 0.85}},
-            "bgcolor": "#f7f9fb",
+            "xaxis": {"visible": False, "range": [-1.10, 1.10]},
+            "yaxis": {"visible": False, "range": [-1.10, 1.10]},
+            "zaxis": {"visible": False, "range": [-1.10, 1.10]},
+            "camera": {"eye": {"x": 1.16, "y": 1.05, "z": 0.58}},
+            "bgcolor": "rgba(0,0,0,0)",
         },
         dragmode="orbit",
     )
@@ -253,7 +324,8 @@ class GlobeView(QWidget):
             "位置仅表示厂商总部，不表示漏洞、攻击、设备或受害者所在地。"
         )
         page = write_plotly_page(
-            build_globe_figure(mapped), self._web_directory, "globe.html", click_customdata=True
+            build_globe_figure(mapped), self._web_directory, "globe.html",
+            click_customdata=True, background="#020813", starfield=True,
         )
         self.web.setUrl(QUrl.fromLocalFile(str(page)))
 
