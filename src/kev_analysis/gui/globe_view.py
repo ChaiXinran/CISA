@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 from .chart_export import export_widget_png
-from .web_bridge import WebBridge, configure_channel, write_plotly_page
+from .web_bridge import WebBridge, configure_channel
 
 LOCATION_COLUMNS = [
     "vendor_clean", "country", "city", "latitude", "longitude", "location_type", "source"
@@ -69,6 +69,7 @@ def load_political_texture(
     source = Path(path) if path is not None else default_boundary_path()
     payload = json.loads(source.read_text(encoding="utf-8"))
     ocean = (4, 18, 36)
+    boundary = (128, 173, 181)
     land_colors = (
         (43, 68, 73), (48, 76, 78), (52, 81, 80),
         (57, 85, 82), (46, 72, 76),
@@ -99,10 +100,20 @@ def load_political_texture(
             draw.polygon(project(polygon[0]), fill=fill)
             for hole in polygon[1:]:
                 draw.polygon(project(hole), fill=ocean)
+    for feature in payload.get("features", []):
+        geometry = feature.get("geometry") or {}
+        coordinates = geometry.get("coordinates", [])
+        polygons = [coordinates] if geometry.get("type") == "Polygon" else (
+            coordinates if geometry.get("type") == "MultiPolygon" else []
+        )
+        for polygon in polygons:
+            for ring in polygon:
+                if ring:
+                    draw.line(project(ring), fill=boundary, width=1, joint="curve")
 
     # The sphere grid runs south-to-north, hence the vertical flip.
     pixels = np.flipud(np.asarray(image, dtype=np.uint8))
-    palette = [ocean, *land_colors]
+    palette = [ocean, *land_colors, boundary]
     color_to_index = {color: index for index, color in enumerate(palette)}
     indices = np.zeros((height, width), dtype=float)
     for color, index in color_to_index.items():
@@ -316,6 +327,8 @@ class GlobeView(QWidget):
         layout.addWidget(self.web, 1)
 
     def update_data(self, filtered_df: pd.DataFrame) -> None:
+        from .three_globe import write_three_globe_page
+
         self._data = filtered_df.copy(deep=True)
         mapped, counts = aggregate_vendor_locations(self._data, self.locations)
         self.summary.setText(
@@ -323,10 +336,7 @@ class GlobeView(QWidget):
             f"未映射 {counts['unmapped_records']:,} 条/{counts['unmapped_vendors']:,} 个厂商。"
             "位置仅表示厂商总部，不表示漏洞、攻击、设备或受害者所在地。"
         )
-        page = write_plotly_page(
-            build_globe_figure(mapped), self._web_directory, "globe.html",
-            click_customdata=True, background="#020813", starfield=True,
-        )
+        page = write_three_globe_page(mapped, self._web_directory, "globe.html")
         self.web.setUrl(QUrl.fromLocalFile(str(page)))
 
     def export_png(self, path: str | Path) -> None:

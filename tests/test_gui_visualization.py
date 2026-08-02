@@ -12,6 +12,7 @@ from kev_analysis.gui.globe_view import (
     aggregate_vendor_locations, build_globe_figure, load_boundary_lines,
     load_earth_texture, load_political_texture, load_vendor_locations,
 )
+from kev_analysis.gui.three_globe import write_three_globe_page
 from kev_analysis.analysis.cwe import build_cwe_summary, explode_cwes
 from kev_analysis.analysis.vendor import build_vendor_summary
 
@@ -90,8 +91,28 @@ def test_nasa_texture_is_local_and_matches_surface_grid():
 def test_political_texture_is_local_and_terrain_free():
     texture, colorscale = load_political_texture()
     assert texture.shape == (361, 721)
-    assert len(colorscale) == 6
-    assert set(np.unique(texture)).issubset(set(range(6)))
+    assert len(colorscale) == 7
+    assert set(np.unique(texture)).issubset(set(range(7)))
+
+
+def test_three_globe_page_is_fully_local_and_contains_vendor_data(tmp_path):
+    locations = load_vendor_locations().head(2).copy()
+    locations["count"] = [10, 5]
+    locations["known_count"] = [4, 1]
+    locations["known_share"] = [0.4, 0.2]
+    page = write_three_globe_page(locations, tmp_path)
+    html = page.read_text(encoding="utf-8")
+    assert (tmp_path / "three.min.js").exists()
+    assert (tmp_path / "earth-political.png").exists()
+    assert '<script src="three.min.js"></script>' in html
+    assert "new THREE.Points" in html
+    assert "vendor-label" in html
+    assert 'id="tooltip"' in html
+    assert "distance=3.65" in html
+    assert "theta+=(e.clientX-lastX)*.006" in html
+    assert "phi-(e.clientY-lastY)*.006" in html
+    assert "v.vendor+'\\n'" in html
+    assert "Microsoft" in html and "Cisco" in html
 
 
 def test_visualization_panel_exposes_fixed_contract():

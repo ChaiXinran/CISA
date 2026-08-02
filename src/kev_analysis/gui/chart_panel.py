@@ -16,9 +16,9 @@ from kev_analysis.analysis.cwe import build_cwe_summary, explode_cwes
 from kev_analysis.analysis.vendor import build_vendor_summary
 from .chart_export import export_widget_png
 from .globe_view import (
-    aggregate_vendor_locations, build_globe_figure,
-    load_vendor_locations,
+    aggregate_vendor_locations, load_vendor_locations,
 )
+from .three_globe import write_three_globe_page
 from .web_bridge import WebBridge, configure_channel, write_plotly_page
 
 
@@ -117,16 +117,14 @@ class VisualizationPanel(QWidget):
         )
         figures = build_linked_figures(self._data)
         if not self._headless:
-            all_figures = {"globe": build_globe_figure(mapped), **figures}
-            self._pages = {}
-            for name, figure in all_figures.items():
+            self._pages = {
+                "globe": write_three_globe_page(mapped, self._web_directory, "globe.html")
+            }
+            for name, figure in figures.items():
                 self._pages[name] = write_plotly_page(
                     figure, self._web_directory, f"{name}.html",
-                    click_customdata=name in {"globe", "vendor"},
-                    adaptive_3d_markers=name == "globe",
+                    click_customdata=name == "vendor",
                     vertical_scroll=name in {"vendor", "cwe"},
-                    background="#020813" if name == "globe" else "#f7f9fb",
-                    starfield=name == "globe",
                 )
             self._show_selected()
         self.export_available.emit(True)
